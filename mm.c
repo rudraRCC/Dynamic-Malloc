@@ -65,6 +65,25 @@ team_t team = {
 #define NEXT_BLKP(bp)  ((char *)(bp) + GET_SIZE(((char *)(bp) - WSIZE)))
 #define PREV_BLKP(bp)  ((char *)(bp) - GET_SIZE(((char *)(bp) - DSIZE)))
 
+//user time pass
+/*
+struct freeblocknode
+{
+	struct freeblocknode *previous;
+	void *freeblockptr;
+	struct freeblocknode *next;
+} fbn;
+
+struct freeblocknode freeblock[24];
+
+for(int i=0;i<24;i++)
+{
+	freeblock[i]->previous = NULL;
+	freeblock[i]->freeblockptr = NULL;
+	freeblock[i]->next = NULL;
+}*/
+//user time pass ends
+
 /* Global variables: */
 static char *heap_listp; /* Pointer to first block */  
 
@@ -77,7 +96,7 @@ static void place(void *bp, size_t asize);
 static void *find_best_fit(size_t asize);
 
 
-/* Function prototypes for heap consistency checker routines: */
+/* fFunction prototypes for heap consistency checker routines: */
 static void checkblock(void *bp);
 static void checkheap(bool verbose);
 static void printblock(void *bp); 
@@ -106,6 +125,14 @@ mm_init(void)
 	/* Extend the empty heap with a free block of CHUNKSIZE bytes. */
 	if (extend_heap(CHUNKSIZE / WSIZE) == NULL)
 		return (-1);
+
+	//user time pass
+	/*int initialindex = indexlog2(GET_SIZE(HDRP(heap_listp)));
+	struct freeblocknode newnode;
+	newnode->freeblockptr = (void *)heap_listp;	
+	freeblock[initialindex]->next = newnode;
+	newnode->previous = freeblock[initialindex];*/	
+	//user time pass ends
 	return (0);
 }
 
@@ -120,7 +147,7 @@ mm_init(void)
  */
 void *
 mm_malloc(size_t size) 
-{
+{	
 	size_t asize;      /* Adjusted block size */
 	size_t extendsize; /* Amount to extend heap if no fit */
 	void *bp;
@@ -136,13 +163,13 @@ mm_malloc(size_t size)
 		asize = DSIZE * ((size + DSIZE + (DSIZE - 1)) / DSIZE);
 
 	/* Search the free list for a fit. */
+
 	bp = find_best_fit(asize);
 	if (bp != NULL) {
 		place(bp, asize);
+		//need to check for allocated block and size class (using log) if bp has been split. did that in place function.
 		return (bp);
 	}
-
-
 
 	/* No fit found.  Get more memory and place the block. */
 	extendsize = MAX(asize, CHUNKSIZE);
@@ -239,27 +266,46 @@ coalesce(void *bp)
 {
 	bool prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
 	bool next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
-	size_t size = GET_SIZE(HDRP(bp));
-
-	if (prev_alloc && next_alloc) {                 /* Case 1 */
+	size_t size = GET_SIZE(HDRP(bp));	
+	
+	//add the blocks to corresponding size class after checking (using log).
+	if (prev_alloc && next_alloc) {    		/* Case 1 */
 		return (bp);
-	} else if (prev_alloc && !next_alloc) {         /* Case 2 */
+	} else if (prev_alloc && !next_alloc){         /* Case 2 */
+		//user time pass	
+		//void* nextblkptr = NEXT_BLK(bp);
+		//removefromlist(nextblkptr);
+		//user time pass ends
 		size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
 		PUT(HDRP(bp), PACK(size, 0));
 		PUT(FTRP(bp), PACK(size, 0));
+		
 	} else if (!prev_alloc && next_alloc) {         /* Case 3 */
+		//user time pass	
+		//void* prevblkptr = PREV_BLK(bp);
+		//removefromlist(prevblkptr);
+		//user time pass ends
 		size += GET_SIZE(HDRP(PREV_BLKP(bp)));
 		PUT(FTRP(bp), PACK(size, 0));
 		PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
 		bp = PREV_BLKP(bp);
-	} else {                                        /* Case */
+	} else {                                        /* Case 4 */
+		//user time pass	
+		//void* nextblkptr = NEXT_BLK(bp);
+		//removefromlist(nextblkptr);
+		//void* prevblkptr = PREV_BLK(bp);
+		//removefromlist(prevblkptr);
+		//user time pass ends
 		size += GET_SIZE(HDRP(PREV_BLKP(bp))) + 
 		    GET_SIZE(FTRP(NEXT_BLKP(bp)));
 		PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
 		PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
 		bp = PREV_BLKP(bp);
 	}
-
+	
+	//user time pass
+	//addtolist(bp,size);
+	//user time pass ends
 	
 	return (bp);
 }
@@ -306,6 +352,23 @@ find_best_fit(size_t asize)
 	unsigned int minsize = 100000000;
 	void *bp,*toallocate = NULL;
 	int flag =0;	
+
+	//user time pass
+	/*int startindex = indexlog2(asize);
+	int i;
+	for(i=startindex;i<24;i++)
+	{
+		if(freeblock[i]->next!= NULL)
+		{
+			toallocate = (freeblock[i]->next)->freeblockptr;
+			freeblock[i]->next = (freeblock[i]->next)->next;
+			return (void*)(toallocate);
+		}
+	}
+	
+	return NULL;*/
+	//user time pass ends
+
 	/* Search for the best fit. */
         for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
                 if (!GET_ALLOC(HDRP(bp)) && asize <= GET_SIZE(HDRP(bp)))
@@ -346,6 +409,9 @@ place(void *bp, size_t asize)
 		bp = NEXT_BLKP(bp);
 		PUT(HDRP(bp), PACK(csize - asize, 0));
 		PUT(FTRP(bp), PACK(csize - asize, 0));
+		//user time pass
+		//addtolist(bp,csize-asize);		
+		//user time pass ends
 	} else {
 		PUT(HDRP(bp), PACK(csize, 1));
 		PUT(FTRP(bp), PACK(csize, 1));
@@ -434,6 +500,56 @@ printblock(void *bp)
 	    fsize, (falloc ? 'a' : 'f'));
 }
 
+int indexlog2(int x)
+{
+	int i;
+	for(i=0;x>1;i++)
+	{
+		x=x/2;
+	}
+	return i;
+}
+
+int indexdiv8(int x)
+{
+	int y = x/8;
+	if(!(x & 0x7))
+	y++;
+	return y;
+	
+}
+
+/*void removefromlist(void * ptr)
+{
+	int nextblksize = GET_SIZE(HDRP(ptr));
+	int index = indexlog2(nextblksize);
+
+	struct freeblocknode *removenode = freeblock[index]; 
+	while(removenode->freeblockptr != ptr)
+	{
+		removenode = removenode->next;
+	}
+	
+	struct freeblocknode *prev = removenode->previous;	
+	struct freeblocknode *next = removenode->next;
+		
+	prev->next = removenode->next;
+	next->prev = removenode->prev;		
+}*/
+
+/*void addtolist(void *ptr,int sizex)
+{
+	//user time pass
+	int index = indexlog2(sizex);
+	struct freeblocknode temp = freeblock[index]->next;
+	struct freeblocknode newnode; 		
+	newnode->freeblockptr = bp;
+	newnode->next = temp;
+	newnode->previous = freeblock[index];
+	temp->previous = newnode;
+	freeblock[index]->next = newnode;
+	//user time pass ends
+}*/
 /*
  * The last lines of this file configures the behavior of the "Tab" key in
  * emacs.  Emacs has a rudimentary understanding of C syntax and style.  In
