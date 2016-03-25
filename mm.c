@@ -13,6 +13,7 @@
  * as a pointer, i.e., sizeof(uintptr_t) == sizeof(void *).
  */
 //Eni maa no atthho
+//Eni maa no navvo
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
